@@ -6,11 +6,11 @@ from base64 import b16encode, b32decode
 import sickbeard
 from sickbeard import logger
 from sickbeard.exceptions import ex
-from sickbeard.clients import http_error_code
-from lib.bencode import bencode, bdecode
-from lib import requests
-from lib.requests import exceptions
-from lib.bencode.BTL import BTFailure
+from . import http_error_code
+from bencode import bencode, bdecode
+import requests
+from requests import exceptions
+from bencode.BTL import BTFailure
 
 class GenericClient(object):
     def __init__(self, name, host=None, username=None, password=None):
@@ -25,7 +25,7 @@ class GenericClient(object):
         self.response = None
         self.auth = None
         self.last_time = time.time()
-        self.session = requests.session()
+        self.session = requests.Session()
         self.session.auth = (self.username, self.password)
 
     def _request(self, method='get', params={}, data=None, files=None):
@@ -61,7 +61,7 @@ class GenericClient(object):
             logger.log(self.name + u': Invalid HTTP Request ' + str(e), logger.ERROR)
             return False
         except requests.exceptions.Timeout, e:
-            logger.log(self.name + u': Connection Timeout ' + str(e), logger.ERROR)
+            logger.log(self.name + u': Connection Timeout ' + str(e), logger.WARNING)
             return False
         except Exception, e:
             logger.log(self.name + u': Unknown exception raised when send torrent to ' + self.name + ': ' + str(e),

@@ -19,8 +19,9 @@
 import sickbeard
 from sickbeard import logger
 from sickbeard.exceptions import ex
-from lib.trakt import TraktAPI
-from lib.trakt.exceptions import traktException, traktServerBusy, traktAuthException
+
+from libtrakt import TraktAPI
+from libtrakt.exceptions import traktException, traktServerBusy, traktAuthException
 
 class TraktNotifier:
     """
@@ -47,7 +48,7 @@ class TraktNotifier:
         """
 
         trakt_id = sickbeard.indexerApi(ep_obj.show.indexer).config['trakt_id']
-        trakt_api = TraktAPI(sickbeard.TRAKT_API_KEY, sickbeard.TRAKT_USERNAME, sickbeard.TRAKT_PASSWORD, sickbeard.TRAKT_DISABLE_SSL_VERIFY, sickbeard.TRAKT_TIMEOUT)
+        trakt_api = TraktAPI(sickbeard.SSL_VERIFY, sickbeard.TRAKT_TIMEOUT)
 
         if sickbeard.USE_TRAKT:
             try:
@@ -58,46 +59,32 @@ class TraktNotifier:
                             'title': ep_obj.show.name,
                             'year': ep_obj.show.startyear,
                             'ids': {},
-                            'seasons': [
-                                {
-                                    'number': ep_obj.season,
-                                    'episodes': [
-                                        {
-                                            'number': ep_obj.episode
-                                        }
-                                    ]
-                                }
-                            ]
                         }
                     ]
                 }
-
+                               
                 if trakt_id == 'tvdb_id':
                     data['shows'][0]['ids']['tvdb'] = ep_obj.show.indexerid
                 else:
                     data['shows'][0]['ids']['tvrage'] = ep_obj.show.indexerid
 
+                if sickbeard.TRAKT_SYNC_WATCHLIST:
+                    if sickbeard.TRAKT_REMOVE_SERIESLIST:
+                        trakt_api.traktRequest("sync/watchlist/remove", data, method='POST')
+
+                # Add Season and Episode + Related Episodes
+                data['shows'][0]['seasons']=[{'number': ep_obj.season,'episodes': [] }]
+                
+                for relEp_Obj in [ep_obj] + ep_obj.relatedEps:
+                    data['shows'][0]['seasons'][0]['episodes'].append({'number': relEp_Obj.episode})
+                        
+                if sickbeard.TRAKT_SYNC_WATCHLIST:
+                    if sickbeard.TRAKT_REMOVE_WATCHLIST:
+                        trakt_api.traktRequest("sync/watchlist/remove", data, method='POST')
+                
                 # update library
                 trakt_api.traktRequest("sync/collection", data, method='POST')
-
-                if sickbeard.TRAKT_REMOVE_SERIESLIST:
-                    data = {
-                        'shows': [
-                            {
-                                'title': ep_obj.show.name,
-                                'year': ep_obj.show.startyear,
-                                'ids': {}
-                            }
-                        ]
-                    }
-
-                    if trakt_id == 'tvdb_id':
-                        data['shows'][0]['ids']['tvdb'] = ep_obj.show.indexerid
-                    else:
-                        data['shows'][0]['ids']['tvrage'] = ep_obj.show.indexerid
-
-                    trakt_api.traktRequest("sync/watchlist/remove", data, method='POST')
-
+                
             except (traktException, traktAuthException, traktServerBusy) as e:
                 logger.log(u"Could not connect to Trakt service: %s" % ex(e), logger.WARNING)
 
@@ -114,7 +101,7 @@ class TraktNotifier:
         update: type o action add or remove
         """
 
-        trakt_api = TraktAPI(sickbeard.TRAKT_API_KEY, sickbeard.TRAKT_USERNAME, sickbeard.TRAKT_PASSWORD)
+        trakt_api = TraktAPI(sickbeard.SSL_VERIFY, sickbeard.TRAKT_TIMEOUT)
 
         if sickbeard.USE_TRAKT:
 
@@ -219,7 +206,7 @@ class TraktNotifier:
 
         return post_data
 
-    def test_notify(self, username, password, disable_ssl, blacklist_name=None):
+    def test_notify(self, username, disable_ssl, blacklist_name=None):
         """
         Sends a test notification to trakt with the given authentication info and returns a boolean
         representing success.
@@ -232,7 +219,7 @@ class TraktNotifier:
         Returns: True if the request succeeded, False otherwise
         """
         try:
-            trakt_api = TraktAPI(sickbeard.TRAKT_API_KEY, username, password, disable_ssl, sickbeard.TRAKT_TIMEOUT)
+            trakt_api = TraktAPI(disable_ssl, sickbeard.TRAKT_TIMEOUT)
             trakt_api.validateAccount()
             if blacklist_name and blacklist_name is not None:
                 trakt_lists = trakt_api.traktRequest("users/" + username + "/lists")

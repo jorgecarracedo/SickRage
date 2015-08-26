@@ -39,9 +39,9 @@ from sickbeard.show_name_helpers import allPossibleShowNames, sanitizeSceneName
 from sickbeard.common import Overview
 from sickbeard.exceptions import ex
 from sickbeard import encodingKludge as ek
-from lib import requests
-from lib.requests import exceptions
-from lib.unidecode import unidecode
+import requests
+from requests import exceptions
+from unidecode import unidecode
 
 
 class ThePirateBayProvider(generic.TorrentProvider):
@@ -59,7 +59,7 @@ class ThePirateBayProvider(generic.TorrentProvider):
 
         self.cache = ThePirateBayCache(self)
 
-        self.urls = {'base_url': 'https://thepiratebay.se/'}
+        self.urls = {'base_url': 'https://thepiratebay.gd/'}
 
         self.url = self.urls['base_url']
 
@@ -144,8 +144,8 @@ class ThePirateBayProvider(generic.TorrentProvider):
             quality = Quality.sceneQuality(os.path.basename(fileName))
             if quality != Quality.UNKNOWN: break
 
-        if fileName is not None and quality == Quality.UNKNOWN:
-            quality = Quality.assumeQuality(os.path.basename(fileName))
+        #if fileName is not None and quality == Quality.UNKNOWN:
+        #    quality = Quality.assumeQuality(fileName)
 
         if quality == Quality.UNKNOWN:
             logger.log(u"Unable to obtain a Season Quality for " + title, logger.DEBUG)
@@ -239,7 +239,7 @@ class ThePirateBayProvider(generic.TorrentProvider):
                 if not data:
                     continue
 
-                re_title_url = self.proxy._buildRE(self.re_title_url)
+                re_title_url = self.proxy._buildRE(self.re_title_url).replace('&amp;f=norefer', '')
                 matches = re.compile(re_title_url, re.DOTALL).finditer(urllib.unquote(data))
                 for torrent in matches:
                     title = torrent.group('title').replace('_',
@@ -258,7 +258,7 @@ class ThePirateBayProvider(generic.TorrentProvider):
                             'title') + " but that doesn't seem like a trusted result so I'm ignoring it", logger.DEBUG)
                         continue
 
-                    #Check number video files = episode in season and find the real Quality for full season torrent analyzing files in torrent 
+                    #Check number video files = episode in season and find the real Quality for full season torrent analyzing files in torrent
                     if mode == 'Season' and search_mode == 'sponly':
                         ep_number = int(epcount / len(set(allPossibleShowNames(self.show))))
                         title = self._find_season_quality(title, id, ep_number)
@@ -282,7 +282,6 @@ class ThePirateBayProvider(generic.TorrentProvider):
         title, url, id, seeders, leechers = item
 
         if title:
-            title = u'' + title.replace(' ', '.')
             title = self._clean_title_from_provider(title)
 
         if url:

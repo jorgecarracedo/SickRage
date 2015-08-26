@@ -61,10 +61,10 @@ class NyaaProvider(generic.TorrentProvider):
         return generic.TorrentProvider.findSearchResults(self, show, episodes, search_mode, manualSearch, downCurQuality)
 
     def _get_season_search_strings(self, ep_obj):
-        return show_name_helpers.makeSceneShowSearchStrings(self.show, anime=True)
+        return [x for x in show_name_helpers.makeSceneSeasonSearchString(self.show, ep_obj)]
 
     def _get_episode_search_strings(self, ep_obj, add_string=''):
-        return self._get_season_search_strings(ep_obj)
+        return [x for x in show_name_helpers.makeSceneSearchString(self.show, ep_obj)]
 
     def _doSearch(self, search_string, search_mode='eponly', epcount=0, age=0, epObj=None):
         if self.show and not self.show.is_anime:
@@ -73,7 +73,7 @@ class NyaaProvider(generic.TorrentProvider):
 
         params = {
             "term": search_string.encode('utf-8'),
-            "cats": '1_37',  # Limit to English-translated Anime (for now)
+            "cats": '1_0',  # All anime
             "sort": '2',     # Sort Descending By Seeders
         }
 

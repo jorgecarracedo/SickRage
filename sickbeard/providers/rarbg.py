@@ -26,11 +26,11 @@ import datetime
 import json
 import time
 
-from lib import requests
-from lib.requests import exceptions
+import requests
+from requests import exceptions
 
 import sickbeard
-from sickbeard.common import Quality
+from sickbeard.common import Quality, USER_AGENT
 from sickbeard import logger
 from sickbeard import tvcache
 from sickbeard import show_name_helpers
@@ -40,8 +40,12 @@ from sickbeard import helpers
 from sickbeard import classes
 from sickbeard.exceptions import ex
 from sickbeard.helpers import sanitizeSceneName
-from lib.requests.exceptions import RequestException
+from requests.exceptions import RequestException
 from sickbeard.indexers.indexer_config import INDEXER_TVDB,INDEXER_TVRAGE
+
+
+class GetOutOfLoop(Exception):
+    pass
 
 
 class RarbgProvider(generic.TorrentProvider):
@@ -50,21 +54,22 @@ class RarbgProvider(generic.TorrentProvider):
         generic.TorrentProvider.__init__(self, "Rarbg")
 
         self.enabled = False
-        self.session = None
         self.supportsBacklog = True
         self.ratio = None
         self.minseed = None
+        self.ranked = None
+        self.sorting = None
         self.minleech = None
         self.token = None
         self.tokenExpireDate = None
 
-        self.urls = {'url': 'https://rarbg.com',
-                     'token': 'https://torrentapi.org/pubapi.php?get_token=get_token&format=json',
-                     'listing': 'https://torrentapi.org/pubapi.php?mode=list&token={token}',
-                     'search': 'https://torrentapi.org/pubapi.php?mode=search&search_string={search_string}&token={token}',
-                     'search_tvdb': 'https://torrentapi.org/pubapi.php?mode=search&search_tvdb={tvdb}&search_string={search_string}&token={token}',
-                     'search_tvrage': 'https://torrentapi.org/pubapi.php?mode=search&search_tvrage={tvrage}&search_string={search_string}&token={token}',
-                     'api_spec': 'https://rarbg.com/pubapi/apidocs.txt',
+        self.urls = {'url': u'https://rarbg.com',
+                     'token': u'http://torrentapi.org/pubapi_v2.php?get_token=get_token&format=json&app_id=sickrage',
+                     'listing': u'http://torrentapi.org/pubapi_v2.php?mode=list&app_id=sickrage',
+                     'search': u'http://torrentapi.org/pubapi_v2.php?mode=search&app_id=sickrage&search_string={search_string}',
+                     'search_tvdb': u'http://torrentapi.org/pubapi_v2.php?mode=search&app_id=sickrage&search_tvdb={tvdb}&search_string={search_string}',
+                     'search_tvrage': u'http://torrentapi.org/pubapi_v2.php?mode=search&app_id=sickrage&search_tvrage={tvrage}&search_string={search_string}',
+                     'api_spec': u'https://rarbg.com/pubapi/apidocs.txt',
                      }
 
         self.url = self.urls['listing']
@@ -76,17 +81,18 @@ class RarbgProvider(generic.TorrentProvider):
                         'limit': '&limit={limit}',
                         'format': '&format={format}',
                         'ranked': '&ranked={ranked}',
+                        'token': '&token={token}',
         }
         
-        self.defaultOptions = self.urlOptions['categories'].format(categories='18;41') + \
-                                self.urlOptions['sorting'].format(sorting='last') + \
+        self.defaultOptions = self.urlOptions['categories'].format(categories='tv') + \
                                 self.urlOptions['limit'].format(limit='100') + \
-                                self.urlOptions['format'].format(format='json') + \
-                                self.urlOptions['ranked'].format(ranked='1')
+                                self.urlOptions['format'].format(format='json')
 
         self.next_request = datetime.datetime.now()
 
         self.cache = RarbgCache(self)
+        
+        self.headers = {'User-Agent': USER_AGENT}
 
     def isEnabled(self):
         return self.enabled
@@ -98,14 +104,13 @@ class RarbgProvider(generic.TorrentProvider):
         if self.token and self.tokenExpireDate and datetime.datetime.now() < self.tokenExpireDate:
             return True
 
-        self.session = requests.Session()
         resp_json = None
 
         try:
-            response = self.session.get(self.urls['token'], timeout=30, verify=False)
+            response = self.session.get(self.urls['token'], timeout=30, headers=self.headers)
             response.raise_for_status()
             resp_json = response.json()
-        except RequestException as e:
+        except (RequestException) as e:
             logger.log(u'Unable to connect to {name} provider: {error}'.format(name=self.name, error=ex(e)), logger.ERROR)
             return False
 
@@ -116,7 +121,7 @@ class RarbgProvider(generic.TorrentProvider):
             try:
                 if resp_json['token']:
                     self.token = resp_json['token']
-                    self.tokenExpireDate = datetime.datetime.now() + datetime.timedelta(minutes=15)
+                    self.tokenExpireDate = datetime.datetime.now() + datetime.timedelta(minutes=14)
                     return True
             except Exception as e:
                 logger.log(u'{name} provider: No token found'.format(name=self.name), logger.ERROR)
@@ -196,21 +201,21 @@ class RarbgProvider(generic.TorrentProvider):
         for mode in search_params.keys(): #Mode = RSS, Season, Episode
             for search_string in search_params[mode]:
                 if mode == 'RSS':
-                    searchURL = self.urls['listing'].format(token=self.token) + self.defaultOptions
+                    searchURL = self.urls['listing'] + self.defaultOptions
                 elif mode == 'Season':
                     if ep_indexer == INDEXER_TVDB:
-                        searchURL = self.urls['search_tvdb'].format(token=self.token, search_string=urllib.quote(search_string), tvdb=ep_indexerid) + self.defaultOptions
+                        searchURL = self.urls['search_tvdb'].format(search_string=search_string, tvdb=ep_indexerid) + self.defaultOptions
                     elif ep_indexer == INDEXER_TVRAGE:
-                        searchURL = self.urls['search_tvrage'].format(token=self.token, search_string=urllib.quote(search_string), tvrage=ep_indexerid) + self.defaultOptions
+                        searchURL = self.urls['search_tvrage'].format(search_string=search_string, tvrage=ep_indexerid) + self.defaultOptions
                     else:
-                        searchURL = self.urls['search'].format(token=self.token, search_string=urllib.quote(search_string)) + self.defaultOptions
+                        searchURL = self.urls['search'].format(search_string=search_string) + self.defaultOptions
                 elif mode == 'Episode':
                     if ep_indexer == INDEXER_TVDB:
-                        searchURL = self.urls['search_tvdb'].format(token=self.token, search_string=urllib.quote(search_string), tvdb=ep_indexerid) + self.defaultOptions
+                        searchURL = self.urls['search_tvdb'].format(search_string=search_string, tvdb=ep_indexerid) + self.defaultOptions
                     elif ep_indexer == INDEXER_TVRAGE:
-                        searchURL = self.urls['search_tvrage'].format(token=self.token, search_string=urllib.quote(search_string), tvrage=ep_indexerid) + self.defaultOptions
+                        searchURL = self.urls['search_tvrage'].format(search_string=search_string, tvrage=ep_indexerid) + self.defaultOptions
                     else:
-                        searchURL = self.urls['search'].format(token=self.token, search_string=urllib.quote(search_string)) + self.defaultOptions
+                        searchURL = self.urls['search'].format(search_string=search_string) + self.defaultOptions
                 else:
                     logger.log(u'{name} invalid search mode:{mode}'.format(name=self.name, mode=mode), logger.ERROR)
 
@@ -219,43 +224,79 @@ class RarbgProvider(generic.TorrentProvider):
 
                 if self.minseed:
                     searchURL += self.urlOptions['seeders'].format(min_seeders=int(self.minseed))
+                    
+                if self.sorting:
+                    searchURL += self.urlOptions['sorting'].format(sorting=self.sorting)
+
+                if self.ranked:
+                    searchURL += self.urlOptions['ranked'].format(ranked=int(self.ranked))
 
                 logger.log(u'{name} search page URL: {url}'.format(name=self.name, url=searchURL), logger.DEBUG)
 
-                time_out = 0
-                while (datetime.datetime.now() < self.next_request) and time_out <= 15:
-                    time_out = time_out + 1
-                    time.sleep(1)
+                try:
+                    retry = 3
+                    while retry > 0:
+                        time_out = 0
+                        while (datetime.datetime.now() < self.next_request) and time_out <= 15:
+                            time_out = time_out + 1
+                            time.sleep(1)
 
-                data = self.getURL(searchURL)
+                        data = self.getURL(searchURL + self.urlOptions['token'].format(token=self.token))
 
-                self.next_request = datetime.datetime.now() + datetime.timedelta(seconds=10)
+                        self.next_request = datetime.datetime.now() + datetime.timedelta(seconds=10)
 
-                if not data:
-                    logger.log(u'{name} no data returned.'.format(name=self.name), logger.DEBUG)
-                    continue
-                if re.search('ERROR', data):
-                    logger.log(u'{name} returned an error.'.format(name=self.name), logger.DEBUG)
-                    continue
-                if re.search('No results found', data):
-                    logger.log(u'{name} no results found.'.format(name=self.name), logger.DEBUG)
-                    continue
-                if re.search('Invalid token set!', data):
-                    logger.log(u'{name} Invalid token set!'.format(name=self.name), logger.ERROR)
-                    return results
-                if re.search('Too many requests per minute. Please try again later!', data):
-                    logger.log(u'{name} Too many requests per minute.'.format(name=self.name), logger.ERROR)
-                    time.sleep(10)
-                    continue
-                if re.search('Cant find search_tvdb in database. Are you sure this imdb exists?', data):
-                    logger.log(u'{name} no results found. Search tvdb id do not exist on server.'.format(name=self.name), logger.DEBUG)
-                    continue
-                if re.search('Cant find search_tvrage in database. Are you sure this imdb exists?', data):
-                    logger.log(u'{name} no results found. Search tvrage id do not exist on server.'.format(name=self.name), logger.DEBUG)
+                        if not data:
+                            logger.log(u'{name} no data returned.'.format(name=self.name), logger.DEBUG)
+                            raise GetOutOfLoop
+                        if re.search('ERROR', data):
+                            logger.log(u'{name} returned an error.'.format(name=self.name), logger.DEBUG)
+                            raise GetOutOfLoop
+                        if re.search('No results found', data):
+                            logger.log(u'{name} no results found.'.format(name=self.name), logger.DEBUG)
+                            raise GetOutOfLoop
+                        if re.search('Invalid token set!', data):
+                            logger.log(u'{name} Invalid token set!'.format(name=self.name), logger.ERROR)
+                            return results
+                        if re.search('Too many requests per minute. Please try again later!', data):
+                            logger.log(u'{name} Too many requests per minute.'.format(name=self.name), logger.DEBUG)
+                            retry = retry - 1
+                            time.sleep(10)
+                            continue
+                        if re.search('Cant find search_tvdb in database. Are you sure this imdb exists?', data):
+                            logger.log(u'{name} no results found. Search tvdb id do not exist on server.'.format(name=self.name), logger.DEBUG)
+                            raise GetOutOfLoop
+                        if re.search('Cant find search_tvrage in database. Are you sure this imdb exists?', data):
+                            logger.log(u'{name} no results found. Search tvrage id do not exist on server.'.format(name=self.name), logger.DEBUG)
+                            raise GetOutOfLoop
+                        if re.search('Invalid token. Use get_token for a new one!', data):
+                            logger.log(u'{name} Invalid token, retrieving new token'.format(name=self.name), logger.DEBUG)
+                            retry = retry - 1
+                            self.token = None
+                            self.tokenExpireDate = None
+                            if not self._doLogin():
+                                logger.log(u'{name} Failed retrieving new token'.format(name=self.name), logger.DEBUG)
+                                return results
+                            logger.log(u'{name} Using new token'.format(name=self.name), logger.DEBUG)
+                            continue
+                        if re.search('<div id="error">.*</div>', data):
+                            logger.log(u'{name} {proxy} does not support https.'.format(name=self.name, proxy=self.proxy.getProxyURL()), logger.DEBUG)
+                            searchURL = searchURL.replace(u'https', 'http')
+                            continue
+
+                        #No error found break
+                        break
+                    else:
+                        logger.log(u'{name} Retried 3 times without getting results.'.format(name=self.name), logger.DEBUG)
+                        continue
+                except GetOutOfLoop:
                     continue
 
                 try:
-                    data_json = json.loads(data)
+                    data = re.search('\[\{\"filename\".*\}\]', data)
+                    if data is not None:
+                        data_json = json.loads(data.group())
+                    else:
+                        data_json = {}
                 except Exception as e:
                     logger.log(u'{name} json load failed: {traceback_info}'.format(name=self.name, traceback_info=traceback.format_exc()), logger.DEBUG)
                     logger.log(u'{name} json load failed. Data dump = {data}'.format(name=self.name, data=data), logger.DEBUG)
@@ -265,15 +306,14 @@ class RarbgProvider(generic.TorrentProvider):
                 try:
                     for item in data_json:
                         try:
-                            torrent_title = item['f']
-                            torrent_download = item['d']
+                            torrent_title = item['filename']
+                            torrent_download = item['download']
                             if torrent_title and torrent_download:
                                 items[mode].append((torrent_title, torrent_download))
                             else:
                                 logger.log(u'{name} skipping invalid result'.format(name=self.name), logger.DEBUG)
                         except Exception:
                             logger.log(u'{name} skipping invalid result: {traceback_info}'.format(name=self.name, traceback_info=traceback.format_exc()), logger.DEBUG)
-                        
                 except Exception:
                     logger.log(u'{name} failed parsing data: {traceback_info}'.format(name=self.name, traceback_info=traceback.format_exc()), logger.ERROR)
             results += items[mode]
@@ -292,8 +332,6 @@ class RarbgProvider(generic.TorrentProvider):
         title, url = item
 
         if title:
-            title = u'' + title
-            title = title.replace(' ', '.')
             title = self._clean_title_from_provider(title)
 
         if url:

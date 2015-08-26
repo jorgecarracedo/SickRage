@@ -1193,6 +1193,33 @@ span.snatched b {
 	opacity: 0.4;
 }
 
+.displayShowTable {
+	table-layout: auto;
+	width: 100%;
+	border-collapse: collapse;
+	border-spacing: 0;
+	text-align: center;
+	border: none;
+	empty-cells: show;
+	color: #000 !important;
+}
+
+.displayShowTable.display_show {
+	clear:both
+}
+
+.displayShowTable th.row-seasonheader {
+	border: none !important;
+	background-color: #222 !important;
+	color: #fff !important;
+	padding-top: 15px !important;
+	text-align: left !important;
+}
+
+.displayShowTable td.col-search {
+    text-align: center;
+}
+
 .sickbeardTable {
 	table-layout: auto;
 	width: 100%;
@@ -1282,7 +1309,7 @@ td.col-subtitles {
 
 th.col-status,
 td.col-status {
-	width: 200px;
+	width: 210px;
 	text-align: center;
 }
 
@@ -1886,6 +1913,10 @@ span.HD {
 	background-color: #2672B6;
 }
 
+span.HDTV {
+	background-color: #2672B6;
+}
+
 span.HD720p {
 	background-color: #5b990d;
 }
@@ -1898,7 +1929,15 @@ span.RawHD {
 	background-color: #cd7300;
 }
 
+span.RawHDTV {
+	background-color: #cd7300;
+}
+
 span.SD {
+	background-color: #BE2625;
+}
+
+span.SDTV {
 	background-color: #BE2625;
 }
 
@@ -1960,32 +1999,19 @@ div.blackwhitelist{
 	float:left;
 	text-align: center; 
 }
-
 div.blackwhitelist input {
-	margin: 5px 5px;
+	margin: 5px 0px;
 }
-
 div.blackwhitelist.pool select{
-	width: 300px;
+	width: 230px;
 }
-
-div.blackwhitelist.pool {
-	margin:5px;
-}
-
 div.blackwhitelist.white select, div.blackwhitelist.black select {
-	width: 180px;
+	width: 150px;
 }
-
-div.blackwhitelist.white, div.blackwhitelist.black {
-	margin:5px;
-}
-
 div.blackwhitelist span {
 	display: block;
 	text-align: center;
 }
-
 div.blackwhitelist.anidb, div.blackwhitelist.manual {
 	margin: 7px 0px;
 }
@@ -3225,3 +3251,49 @@ login.css
 		padding: 20px;
 		float: right;
 	}
+
+/* =======================================================================
+IMDB Popular
+========================================================================== */
+
+.popularShow{
+	margin-bottom:30px;
+}
+
+.popularShow h3{
+	padding:0px;
+	margin:0px;
+	display:inline-block;
+	margin-right:30px;
+}
+
+.popularShow .left{
+	float:left;
+	width:100px;
+}
+
+.popularShow .right{
+	float:left;
+	width:600px;
+}
+
+.popularShow .year{
+	font-style:italic;
+	opacity:0.7;
+}
+
+.popularShow .coverImage{
+	width:80%;
+	padding-left:20px;
+	margin-top:4px;
+}
+
+.popularShow .rating{
+	font-size:90%;
+	display:inline-block;
+	margin-left:0px;
+}
+
+.popularShow p{
+	margin-bottom:0px;
+}

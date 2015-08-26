@@ -20,6 +20,7 @@
 # along with SickRage.  If not, see <http://www.gnu.org/licenses/>.
 
 import smtplib
+import traceback
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
@@ -57,9 +58,9 @@ class EmailNotifier:
 
         if sickbeard.EMAIL_NOTIFY_ONSNATCH:
             show = self._parseEp(ep_name)
-            to = self._generate_recepients(show)
+            to = self._generate_recipients(show)
             if len(to) == 0:
-                logger.log('Skipping email notify because there are no configured recepients', logger.WARNING)
+                logger.log('Skipping email notify because there are no configured recipients', logger.WARNING)
             else:
                 try:
                     msg = MIMEMultipart('alternative')
@@ -96,9 +97,9 @@ class EmailNotifier:
 
         if sickbeard.EMAIL_NOTIFY_ONDOWNLOAD:
             show = self._parseEp(ep_name)
-            to = self._generate_recepients(show)
+            to = self._generate_recipients(show)
             if len(to) == 0:
-                logger.log('Skipping email notify because there are no configured recepients', logger.WARNING)
+                logger.log('Skipping email notify because there are no configured recipients', logger.WARNING)
             else:
                 try:
                     msg = MIMEMultipart('alternative')
@@ -135,9 +136,9 @@ class EmailNotifier:
 
         if sickbeard.EMAIL_NOTIFY_ONSUBTITLEDOWNLOAD:
             show = self._parseEp(ep_name)
-            to = self._generate_recepients(show)
+            to = self._generate_recipients(show)
             if len(to) == 0:
-                logger.log('Skipping email notify because there are no configured recepients', logger.WARNING)
+                logger.log('Skipping email notify because there are no configured recipients', logger.WARNING)
             else:
                 try:
                     msg = MIMEMultipart('alternative')
@@ -166,7 +167,7 @@ class EmailNotifier:
     def notify_git_update(self, new_version="??"):
         pass
 
-    def _generate_recepients(self, show):
+    def _generate_recipients(self, show):
         addrs = []
 
         # Grab the global recipients
@@ -184,13 +185,19 @@ class EmailNotifier:
                             addrs.append(addr)
 
         addrs = set(addrs)
-        logger.log('Notification recepients: %s' % addrs, logger.DEBUG)
+        logger.log('Notification recipients: %s' % addrs, logger.DEBUG)
         return addrs
 
     def _sendmail(self, host, port, smtp_from, use_tls, user, pwd, to, msg, smtpDebug=False):
         logger.log('HOST: %s; PORT: %s; FROM: %s, TLS: %s, USER: %s, PWD: %s, TO: %s' % (
             host, port, smtp_from, use_tls, user, pwd, to), logger.DEBUG)
-        srv = smtplib.SMTP(host, int(port))
+        try:
+            srv = smtplib.SMTP(host, int(port))
+        except Exception as e:
+            logger.log(u"Exception generated while sending e-mail: " + str(e), logger.ERROR)
+            logger.log(traceback.format_exc(), logger.DEBUG)
+            return False
+            
         if smtpDebug:
             srv.set_debuglevel(1)
         try:

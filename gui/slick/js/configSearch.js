@@ -132,6 +132,16 @@ $(document).ready(function(){
                 $('#torrent_username').prop('value', '');
                 $('#host_desc_torrent').text('URL to your Deluge client (e.g. http://localhost:8112)');
                 //$('#directory_title').text(client + directory);
+            } else if ('deluged' == selectedProvider){
+                client = 'Deluge';
+                $(torrent_verify_cert_option).hide();
+                $(torrent_verify_deluge).hide();
+                $(torrent_verify_rtorrent).hide();
+                $(label_warning_deluge).show();
+                $(label_anime_warning_deluge).show();
+                $('#torrent_username_option').show();
+                $('#host_desc_torrent').text('IP or Hostname of your Deluge Daemon (e.g. scgi://localhost:58846)');
+                //$('#directory_title').text(client + directory);
             } else if ('download_station' == selectedProvider){
                 client = 'Synology DS';
                 $(torrent_label_option).hide();
@@ -150,6 +160,12 @@ $(document).ready(function(){
                 $(torrent_verify_rtorrent).show();
                 $(torrent_auth_type_option).show();
                 //$('#directory_title').text(client + directory);
+            } else if ('qbittorrent' == selectedProvider){
+                client = 'qbittorrent';
+                $(torrent_path_option).hide();
+                $(torrent_label_option).hide();
+                $(torrent_label_anime_option).hide();
+                $('#host_desc_torrent').text('URL to your qbittorrent client (e.g. http://localhost:8080)');
             }
             $('#host_title').text(client + host);
             $('#username_title').text(client + username);

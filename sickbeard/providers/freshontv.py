@@ -32,10 +32,10 @@ from sickbeard import helpers
 from sickbeard import show_name_helpers
 from sickbeard.exceptions import ex, AuthException
 from sickbeard import clients
-from lib import requests
-from lib.requests import exceptions
+import requests
+from requests import exceptions
 from sickbeard.bs4_parser import BS4Parser
-from lib.unidecode import unidecode
+from unidecode import unidecode
 from sickbeard.helpers import sanitizeSceneName
 
 
@@ -104,7 +104,7 @@ class FreshOnTVProvider(generic.TorrentProvider):
                 self.session = requests.Session()
 
             try:
-                response = self.session.post(self.urls['login'], data=login_params, timeout=30, verify=False)
+                response = self.session.post(self.urls['login'], data=login_params, timeout=30)
             except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError) as e:
                 logger.log(u'Unable to connect to ' + self.name + ' provider: ' + ex(e), logger.ERROR)
                 return False
@@ -122,7 +122,7 @@ class FreshOnTVProvider(generic.TorrentProvider):
                         }
                         return True
                 except:
-                    logger.log(u'Unable to obtain cookie for FreshOnTV', logger.ERROR)
+                    logger.log(u'Unable to obtain cookie for FreshOnTV', logger.WARNING)
                     return False
 
             else:
@@ -326,8 +326,6 @@ class FreshOnTVProvider(generic.TorrentProvider):
         title, url, id, seeders, leechers = item
 
         if title:
-            title = u'' + title
-            title = title.replace(' ', '.')
             title = self._clean_title_from_provider(title)
 
         if url:

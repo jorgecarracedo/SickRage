@@ -33,9 +33,9 @@ from sickbeard.exceptions import ex, AuthException
 from sickbeard.common import MULTI_EP_RESULT, SEASON_RESULT, USER_AGENT
 from sickbeard import db
 from sickbeard.name_parser.parser import NameParser, InvalidNameException, InvalidShowException
-from sickbeard.common import Quality
+from sickbeard.common import Quality, cpu_presets
 
-from lib import jsonrpclib
+import jsonrpclib
 from datetime import datetime
 
 
@@ -144,9 +144,13 @@ class BTNProvider(generic.TorrentProvider):
 
         try:
             parsedJSON = server.getTorrents(apikey, params, int(results_per_page), int(offset))
+            time.sleep(cpu_presets[sickbeard.CPU_PRESET])
 
         except jsonrpclib.jsonrpc.ProtocolError, error:
-            logger.log(u"JSON-RPC protocol error while accessing " + self.name + ": " + ex(error), logger.ERROR)
+            if error.message == 'Call Limit Exceeded':
+                logger.log(u"You have exceeded the limit of 150 calls per hour, per API key which is unique to your user account.", logger.WARNING)                
+            else:
+                logger.log(u"JSON-RPC protocol error while accessing " + self.name + ": " + ex(error), logger.ERROR)
             parsedJSON = {'api-error': ex(error)}
             return parsedJSON
 
@@ -350,7 +354,7 @@ class BTNProvider(generic.TorrentProvider):
                     else:
                         items[quality].append(item)
 
-            itemList = list(itertools.chain(*[v for (k, v) in sorted(items.items(), reverse=True)]))
+            itemList = list(itertools.chain(*[v for (k, v) in sorted(items.iteritems(), reverse=True)]))
             itemList += itemsUnknown if itemsUnknown else []
 
         # filter results
@@ -360,7 +364,7 @@ class BTNProvider(generic.TorrentProvider):
 
             # parse the file name
             try:
-                myParser = NameParser(False, convert=True)
+                myParser = NameParser(False)
                 parse_result = myParser.parse(title)
             except InvalidNameException:
                 logger.log(u"Unable to parse the filename " + title + " into a valid episode", logger.DEBUG)  # @UndefinedVariable
@@ -450,7 +454,7 @@ class BTNProvider(generic.TorrentProvider):
                 logger.log(
                     u"Ignoring result " + title + " because we don't want an episode that is " +
                     Quality.qualityStrings[
-                        quality], logger.DEBUG)
+                        quality], logger.INFO)
 
                 continue
 

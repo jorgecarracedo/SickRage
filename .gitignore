@@ -1,24 +1,39 @@
+# SR Travis-CI Files #
+######################
+/.travis.yml
+/.travis
+
+# SR Markdown Files  #
+######################
+/contributing.md
+/README.md
+/README.txt
+
 #  SR User Related   #
 ######################
+/*.db*
+/*.ini
 /cache/
 /Logs/
+/data/
 /restore/
-/backup/
-cache.db*
-config.ini*
-sickbeard.db*
-failed.db*
-/autoProcessTV/autoProcessTV.cfg
-server.crt
-server.key
+/backup*/
+/autoProcessTV.cfg
+/server.crt
+/server.key
 
 #  SR Test Related   #
 ######################
-/tests/Logs/*
-/tests/cache/*
-/tests/sickbeard.db*
-/tests/cache.db*
-/tests/failed.db
+/tests/*.db*
+/tests/*.ini
+/tests/show name/
+/tests/Logs/
+/tests/cache/
+/tests/data/
+/tests/restore/
+/tests/backup*/
+/tests/server.crt
+/tests/server.key
 
 #  Compiled source   #
 ######################
@@ -37,10 +52,13 @@ server.key
 *.sw?
 Session.vim
 .ropeproject/*
-*.iml
 .idea
 *.ipr
 .settings/*
+.pypirc
+/dist
+/build
+/sickrage.egg-info
 
 # OS generated files #
 ######################
@@ -54,6 +72,8 @@ Thumbs.db
 *~
 *.torrent
 
-# Unrar Executable   #
+# Bower #
 ######################
-lib/unrar2/UnRAR.exe
+bower_components
+node_modules
+_bower.js
